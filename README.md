@@ -27,8 +27,10 @@ computer-store-inventory/
       product.c
     ports/
       repository.h
+      presentation.h
     adapters/
       repository_cjson.c
+      presentation_console.c
     lib/
       cJSON.c
       cJSON.h
@@ -43,22 +45,42 @@ computer-store-inventory/
 Agar reviewer cepat paham, berikut peran file-file utama (sesuai struktur project):
 
 - **`computer-store-inventory/src/main.c`**
-  - UI menu (pilihan 1..10).
-  - Tempat *dependency injection* pada Hexagonal Architecture.
-  - Memanggil port lewat function pointer: `glb_repository.load(...)` dan `glb_repository.save(...)`.
+  - **Composition Root**: tempat dependency injection & routing.
+  - Memanggil `createCJsonRepository()` untuk inject repository adapter (cJSON).
+  - Memanggil `createConsolePresentation()` atau instantiasi `glb_presentation` untuk inject presentation adapter (console).
+  - Memanggil port lewat function pointer:
+    - `glb_repository.load(...)` & `glb_repository.save(...)` untuk data persistence.
+    - `glb_presentation.displayMenu()`, `glb_presentation.addProduct()`, dll untuk UI.
+  - Mengimplementasikan main event loop: menu → input user → routing ke fungsi → loop.
 
 - **`computer-store-inventory/src/domain/product.h`**
   - Deklarasi tipe data `Product` (`typedef struct ...`).
   - Deklarasi variabel global dengan `extern`.
-  - Deklarasi fungsi-fungsi yang dipakai UI/logic.
 
 - **`computer-store-inventory/src/domain/product.c`**
-  - Implementasi logika bisnis inventaris:
-    CRUD, searching (linear), sorting (bubble sort), dan operasi stok.
+  - Implementasi logika bisnis inventaris: CRUD, searching (linear), sorting (bubble sort), operasi stok.
+  - **PURE domain layer**: TIDAK ada operasi I/O (printf, scanf). Semua I/O dipindahkan ke presentation adapter.
 
 - **`computer-store-inventory/src/ports/repository.h`**
   - **Port**: kontrak akses data.
   - Berisi `typedef struct ProductRepository` yang menggunakan **function pointer** (`load` dan `save`).
+
+- **`computer-store-inventory/src/ports/presentation.h`**
+  - **Port**: kontrak user interface.
+  - Berisi `typedef struct PresentationAdapter` dengan function pointer untuk semua operasi UI (menu, input form, display).
+  - Memisahkan business logic dari presentation detail.
+
+- **`computer-store-inventory/src/adapters/repository_cjson.c`**
+  - **Adapter** implementasi untuk menyimpan/memuat data JSON.
+  - `cjsonLoad`: baca `data/products.json` → parse → isi array `Product`.
+  - `cjsonSave`: ubah array `Product` → buat JSON → tulis ke file.
+  - `createCJsonRepository()`: factory function untuk inject adapter ke main.
+
+- **`computer-store-inventory/src/adapters/presentation_console.c`**
+  - **Adapter** implementasi untuk user interface berbasis console/terminal.
+  - Berisi semua fungsi UI: `displayMenu()`, `addProduct()`, `updateProduct()`, `deleteProduct()`, dll.
+  - `clearBuffer()`: utility untuk membersihkan input buffer setelah `scanf()`.
+  - Instantiasi global `glb_presentation` berisi function pointer ke semua fungsi UI.
 
 - **`computer-store-inventory/src/adapters/repository_cjson.c`**
   - **Adapter** implementasi untuk menyimpan/memuat data JSON.
@@ -79,7 +101,63 @@ Agar reviewer cepat paham, berikut peran file-file utama (sesuai struktur projec
 
 ---
 
-## A. Penjelasan sintaks C yang tidak umum (tetapi dipakai di kode)
+## Refactoring: Separation of Concerns (Presentation dari Domain)
+
+Pada versi terbaru, aplikasi telah di-refactor mengikuti **Hexagonal Architecture** dengan pemisahan yang lebih ketat:
+
+### Masalah Sebelumnya
+- Semua fungsi UI (`addProduct()`, `displayMenu()`, `searchProduct()`, dll) berada di `product.c` (domain layer).
+- Domain layer tercampur dengan presentation logic (printf, scanf).
+- Sulit untuk testing, refactoring, atau switch UI tanpa ubah domain.
+
+### Solusi: Presentation Port & Adapter
+
+**Sebelum:**
+```
+product.c (domain + presentation tercampur)
+├── void addProduct()    // berisi printf & scanf
+├── void displayMenu()   // UI logic
+└── void searchProduct() // UI logic
+```
+
+**Sesudah:**
+```
+product.c (PURE domain)
+├── Global data: glb_arr_products[], glb_int_product_count
+├── Global repository: glb_repository
+└── [Tidak ada I/O, hanya data & business logic]
+
+presentation.h (PORT = kontrak)
+└── PresentationAdapter struct dengan function pointer
+
+presentation_console.c (ADAPTER = implementasi konkret)
+├── void addProduct()    // implementasi console UI
+├── void displayMenu()   // implementasi console UI
+└── glb_presentation = { .addProduct, .displayMenu, ... }
+
+main.c (ROUTER/ORCHESTRATOR)
+├── Dependency injection: glb_presentation = createConsoleAdapter()
+├── Memanggil UI via: glb_presentation.addProduct()
+└── Routing user choice → fungsi yang sesuai
+```
+
+### Keuntungan Refactoring
+1. **Domain = Pure Logic**: Business logic terpisah dari UI detail.
+2. **Testable**: Bisa unit test domain tanpa mock I/O.
+3. **Flexible**: Ganti console → GUI → Web hanya dengan adapter baru.
+4. **Maintainable**: Clear separation = mudah dibaca & dimodifikasi.
+5. **Scalable**: Mudah add feature baru tanpa kacaukan existing code.
+
+### Mapping Responsibility
+
+| Komponen | Tanggung Jawab |
+|----------|---|
+| **domain/product.c** | Data & business logic (CRUD, search, sort, stock) |
+| **ports/presentation.h** | Kontrak interface UI (function pointer spec) |
+| **adapters/presentation_console.c** | Implementasi UI (printf, scanf, form input) |
+| **main.c** | Dependency injection & routing |
+
+---
 Bagian ini fokus pada “sintaks/konsep C yang sering terasa rumit” namun justru penting untuk memahami project.
 
 ### Ringkasan singkat: Sintaks kunci untuk pemula
