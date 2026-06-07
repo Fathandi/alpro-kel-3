@@ -6,3 +6,6 @@ inventory_app
 output/
 .vscode/
 agent-task.md
+computer-store-inventory/output/
+*.exe
+inventory_app

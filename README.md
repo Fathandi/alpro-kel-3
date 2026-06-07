@@ -73,22 +73,37 @@ Agar reviewer cepat paham, berikut peran file-file utama (sesuai struktur projec
 - **`computer-store-inventory/data/products.json`**
   - “Database lokal” berbentuk JSON (persistensi data).
 
-- **`computer-store-inventory/output/` dan executable hasil build (`main.exe`, `inventory_app`)**
-  - Ini adalah **artefak kompilasi** (bukan source code).
-  - Karena bukan bagian dari logika, file ini sebaiknya diabaikan oleh git melalui `.gitignore`.
-
----
-
-## Kenapa ada `main.exe` / `inventory_app` walau ada `src/main.c`?
-`src/main.c` adalah **kode sumber (teks C)** yang nantinya dikompilasi.
-Sedangkan `main.exe` / `inventory_app` adalah **hasil kompilasi** (binary/eksekusi).
-Jadi keberadaan executable diperlukan agar program bisa dijalankan, tetapi tidak diperlukan untuk kompilasi ulang di repo (source code-nya yang penting). 
-
+ - **`computer-store-inventory/output/` dan executable hasil build (`main.exe`)**
+  - Ini adalah **artefak kompilasi** (bukan source code). Jika di repo terdapat `inventory_app`, itu kemungkinan besar duplikasi dari hasil build yang sama.
+  - Sebaiknya artefak build tidak disimpan dalam repository; tambahkan nama-nama artefak (mis. `main.exe`, `inventory_app`) ke `.gitignore`. Jika Anda memilih menyimpan satu executable untuk dokumentasi, gunakan satu nama yang konsisten (mis. `main.exe`).
 
 ---
 
 ## A. Penjelasan sintaks C yang tidak umum (tetapi dipakai di kode)
 Bagian ini fokus pada “sintaks/konsep C yang sering terasa rumit” namun justru penting untuk memahami project.
+
+### Ringkasan singkat: Sintaks kunci untuk pemula
+Berikut adalah daftar singkat sintaks/pola yang sering muncul di proyek ini, dengan penjelasan singkat dan contoh minimal — ditujukan agar programmer junior cepat paham apa yang harus dicari di kode.
+
+- Header guard: mencegah multiple-include pada header.
+  - Contoh: `#ifndef PRODUCT_H` / `#define PRODUCT_H` ... `#endif`.
+- `typedef struct`: membuat nama tipe yang mudah dipakai.
+  - Contoh: `typedef struct { int id; char name[100]; } Product;` → gunakan `Product` langsung.
+- `extern` vs definisi: deklarasi di header, definisi satu-satunya di `.c`.
+  - Contoh: di header `extern int count;` di `.c` `int count = 0;`.
+- Function pointer untuk "port/adaptor": memanggil implementasi melalui pointer fungsi.
+  - Contoh tipe: `int (*load)(Product[], int*);` lalu panggil `repo.load(arr, &n);`.
+- `static` pada fungsi: membuat fungsi hanya terlihat di file yang sama (private helper).
+  - Contoh: `static char* readFile(const char* filename) { ... }`.
+- Parameter array/pointer: `Product products[]` setara `Product* products`.
+  - Contoh akses: `products[i].id`.
+- Passing by reference: gunakan pointer untuk mengubah variabel pemanggil.
+  - Contoh: `void set(int *p) { *p = 5; }` panggil `set(&x);`.
+- Perbedaan `scanf` dan `fgets`: `scanf` untuk angka; `fgets` lebih aman untuk string.
+  - Ingat: bersihkan input buffer setelah `scanf` sebelum `fgets`.
+- Penggunaan cJSON: parse string JSON ke struktur `cJSON*`, iterasi array, ambil field, lalu isi struct C.
+
+Jika ingin, saya bisa mengubah bagian berikutnya menjadi penjelasan bertahap (contoh file + baris) untuk lebih jelas bagi pemula.
 
 ### 1) Header guard `#ifndef/#define/#endif`
 Di file header `.h` terdapat pola:
