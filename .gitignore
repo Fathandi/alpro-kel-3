@@ -6,4 +6,3 @@ inventory_app
 output/
 .vscode/
 agent-task.md
-.gitignore
