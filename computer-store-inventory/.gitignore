@@ -1,8 +1,0 @@
-# C Object files and Executables
-*.o
-*.out
-*.exe
-inventory_app
-output/
-.vscode/
-agent-task.md
