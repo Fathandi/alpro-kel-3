@@ -2,9 +2,13 @@
 #include <stdlib.h>
 #include "domain/product.h"
 #include "ports/repository.h"
+#include "ports/presentation.h"
 
 /* Pre-declare the constructor for the cJSON repository from repository_cjson.c */
 extern ProductRepository createCJsonRepository();
+
+/* Pre-declare the presentation adapter from presentation_console.c */
+extern PresentationAdapter glb_presentation;
 
 int main() {
     /* Inject the cJSON Repository adapter */
@@ -14,7 +18,7 @@ int main() {
     int lcl_int_choice;
     
     while (1) {
-        displayMenu();
+        glb_presentation.displayMenu();
         printf("Pilihan Anda: ");
         if(scanf("%d", &lcl_int_choice) != 1) {
             clearBuffer();
@@ -23,34 +27,34 @@ int main() {
 
         switch (lcl_int_choice) {
             case 1:
-                addProduct();
+                glb_presentation.addProduct();
                 break;
             case 2:
-                displayAllProducts();
+                glb_presentation.displayAllProducts();
                 break;
             case 3:
-                updateProduct();
+                glb_presentation.updateProduct();
                 break;
             case 4:
-                deleteProduct();
+                glb_presentation.deleteProduct();
                 break;
             case 5:
-                searchProduct();
+                glb_presentation.searchProduct();
                 break;
             case 6:
-                sortProducts();
+                glb_presentation.sortProducts();
                 break;
             case 7:
-                stockIn();
+                glb_presentation.stockIn();
                 break;
             case 8:
-                stockOut();
+                glb_presentation.stockOut();
                 break;
             case 9:
-                lowStockReport();
+                glb_presentation.lowStockReport();
                 break;
             case 10:
-                inventoryStats();
+                glb_presentation.inventoryStats();
                 break;
             case 0:
                 printf("Keluar dari program. Menyimpan data...\n");

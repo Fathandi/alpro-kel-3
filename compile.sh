@@ -19,6 +19,7 @@ gcc \
   src/main.c \
   src/domain/product.c \
   src/adapters/repository_cjson.c \
+  src/adapters/presentation_console.c \
   src/lib/cJSON.c \
   -o "$OUT"
 

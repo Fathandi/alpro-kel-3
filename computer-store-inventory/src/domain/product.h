@@ -21,18 +21,4 @@ typedef struct {
 extern Product glb_arr_products[100];
 extern int glb_int_product_count;
 
-/* Functions for UI & logic */
-void displayMenu();
-void addProduct();
-void displayAllProducts();
-void updateProduct();
-void deleteProduct();
-void searchProduct();
-void sortProducts();
-void stockIn();
-void stockOut();
-void lowStockReport();
-void inventoryStats();
-void clearBuffer();
-
 #endif // PRODUCT_H
