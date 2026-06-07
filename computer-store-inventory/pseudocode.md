@@ -1,194 +1,332 @@
-# Pseudocode Computer Store Inventory Management System
+# Pseudocode Computer Store Inventory Management System (sesuai implementasi C)
+
+> Catatan: pseudocode ini mengikuti struktur menu dan logika fungsi di `src/main.c` dan `src/domain/product.c`, serta persistensi data memakai adapter `src/adapters/repository_cjson.c` (cJSON).
+
+---
 
 ## Variabel Global
 ```
-GLOBAL arr_products AS ARRAY OF Product[100]
-GLOBAL int_product_count AS INTEGER = 0
+GLOBAL arr_products : ARRAY[100] OF Product
+GLOBAL int_product_count : INTEGER = 0
+GLOBAL glb_repository : ProductRepository
 ```
+
+---
 
 ## Main Program / Dashboard
 ```
-BEGIN
-    CALL createManualJsonRepository() RETURNING repository
-    CALL repository.load(arr_products, int_product_count)
+BEGIN main()
+    // inject adapter (Hexagonal Architecture)
+    glb_repository = createCJsonRepository()
+
+    // load persisted data into memory
+    glb_repository.load(arr_products, &int_product_count)
 
     WHILE True DO
-        CALL calculateTotalAssets()
-        DISPLAY "========================"
-        DISPLAY "COMPUTER STORE INVENTORY"
-        DISPLAY "========================"
-        DISPLAY "Total Produk", int_product_count
-        DISPLAY "Total Aset", total_assets
+        displayMenu()  // menampilkan total produk, total stok, nilai aset
 
-        DISPLAY "Menu:"
-        DISPLAY "1. Tambah Produk"
-        DISPLAY "2. Lihat Produk"
-        DISPLAY "3. Update Produk"
-        DISPLAY "4. Hapus Produk"
-        DISPLAY "5. Cari Produk"
-        DISPLAY "6. Sort Produk"
-        DISPLAY "7. Barang Masuk"
-        DISPLAY "8. Barang Keluar"
-        DISPLAY "9. Laporan Stok Menipis"
-        DISPLAY "10. Statistik Inventaris"
-        DISPLAY "0. Keluar"
-        
         INPUT choice
-        
+        IF choice tidak terbaca (scanf gagal) THEN
+            choice = -1
+        END IF
+
         SWITCH choice
-            CASE 1: CALL addProduct()
-            CASE 2: CALL displayAllProducts()
-            CASE 3: CALL updateProduct()
-            CASE 4: CALL deleteProduct()
-            CASE 5: CALL searchProduct()
-            CASE 6: CALL sortProducts()
-            CASE 7: CALL stockIn()
-            CASE 8: CALL stockOut()
-            CASE 9: CALL lowStockReport()
-            CASE 10: CALL inventoryStats()
+            CASE 1:
+                addProduct()
+            CASE 2:
+                displayAllProducts()
+            CASE 3:
+                updateProduct()
+            CASE 4:
+                deleteProduct()
+            CASE 5:
+                searchProduct()
+            CASE 6:
+                sortProducts()
+            CASE 7:
+                stockIn()
+            CASE 8:
+                stockOut()
+            CASE 9:
+                lowStockReport()
+            CASE 10:
+                inventoryStats()
             CASE 0:
-                CALL repository.save(arr_products, int_product_count)
+                print "Keluar dari program. Menyimpan data..."
+                glb_repository.save(arr_products, int_product_count)
                 EXIT PROGRAM
             DEFAULT:
-                DISPLAY "Pilihan tidak valid"
+                print "Pilihan tidak valid. Silakan coba lagi."
         END SWITCH
     END WHILE
 END
 ```
 
-## Load JSON (File Handling)
+---
+
+## Port & Adapter: Repository (cJSON)
+### Contract (port)
 ```
-BEGIN manualLoadJson(products, count)
-    OPEN FILE "products.json" FOR READING
-    IF FILE NOT FOUND THEN
-        count = 0
+typedef struct ProductRepository
+    load(products[], *count) RETURNS int
+    save(products[], count) RETURNS int
+END
+```
+
+### Adapter Load JSON (`cjsonLoad`)
+```
+BEGIN cjsonLoad(products, *count)
+    json_string = read entire file "computer-store-inventory/data/products.json" as string
+
+    IF json_string == NULL THEN
+        *count = 0
         RETURN 0
     END IF
-    
+
+    root = cJSON_Parse(json_string)
+    free(json_string)
+
+    IF root == NULL THEN
+        *count = 0
+        RETURN 0
+    END IF
+
+    IF root bukan array THEN
+        cJSON_Delete(root)
+        *count = 0
+        RETURN 0
+    END IF
+
     index = 0
-    WHILE NOT END_OF_FILE DO
-        READ LINE from FILE
-        IF LINE CONTAINS "{" THEN
-            in_object = True
-            new_product = EMPTY Product
-        ELSE IF LINE CONTAINS "}" THEN
-            IF in_object THEN
-                products[index] = new_product
-                index = index + 1
-                in_object = False
-            END IF
-        ELSE IF in_object THEN
-            PARSE key and value FROM LINE
-            ASSIGN value TO new_product.key
+    FOR each item IN root array DO
+        IF index >= 100 THEN
+            BREAK
         END IF
-    END WHILE
-    
-    count = index
-    CLOSE FILE
+
+        // baca field object dengan validasi tipe
+        id       = item["id"]
+        name     = item["name"]
+        category = item["category"]
+        price    = item["price"]
+        stock    = item["stock"]
+        supplier = item["supplier"]
+
+        IF id is number THEN products[index].id = id
+        IF name is string THEN products[index].name = name
+        IF category is string THEN products[index].category = category
+        IF price is number THEN products[index].price = price
+        IF stock is number THEN products[index].stock = stock
+        IF supplier is string THEN products[index].supplier = supplier
+
+        index = index + 1
+    END FOR
+
+    *count = index
+    cJSON_Delete(root)
     RETURN 1
 END
 ```
 
-## Save JSON (File Handling)
+### Adapter Save JSON (`cjsonSave`)
 ```
-BEGIN manualSaveJson(products, count)
-    OPEN FILE "products.json" FOR WRITING
-    WRITE "[\n" TO FILE
+BEGIN cjsonSave(products, count)
+    root = cJSON_CreateArray()
+
     FOR i = 0 TO count - 1 DO
-        WRITE "  {\n" TO FILE
-        WRITE "    \"id\": " + products[i].id + ",\n" TO FILE
-        WRITE "    \"name\": \"" + products[i].name + "\",\n" TO FILE
-        WRITE "    \"category\": \"" + products[i].category + "\",\n" TO FILE
-        WRITE "    \"price\": " + products[i].price + ",\n" TO FILE
-        WRITE "    \"stock\": " + products[i].stock + ",\n" TO FILE
-        WRITE "    \"supplier\": \"" + products[i].supplier + "\"\n" TO FILE
-        IF i < count - 1 THEN
-            WRITE "  },\n" TO FILE
-        ELSE
-            WRITE "  }\n" TO FILE
-        END IF
+        obj = cJSON_CreateObject()
+
+        cJSON_AddNumberToObject(obj, "id", products[i].id)
+        cJSON_AddStringToObject(obj, "name", products[i].name)
+        cJSON_AddStringToObject(obj, "category", products[i].category)
+        cJSON_AddNumberToObject(obj, "price", products[i].price)
+        cJSON_AddNumberToObject(obj, "stock", products[i].stock)
+        cJSON_AddStringToObject(obj, "supplier", products[i].supplier)
+
+        cJSON_AddItemToArray(root, obj)
     END FOR
-    WRITE "]\n" TO FILE
-    CLOSE FILE
+
+    json_string = cJSON_Print(root)
+    cJSON_Delete(root)
+
+    buka file "computer-store-inventory/data/products.json" untuk mode write
+    tulis json_string ke file
+    close file
+
+    free(json_string)
+    RETURN 1
 END
 ```
 
-## Tambah Produk
+---
+
+## displayMenu
 ```
-BEGIN addProduct
+BEGIN displayMenu()
+    // hitung statistik untuk ditampilkan
+    total_asset = 0
+    total_stock = 0
+    FOR i = 0 TO int_product_count - 1 DO
+        total_asset += products[i].price * products[i].stock
+        total_stock += products[i].stock
+    END FOR
+
+    DISPLAY menu 1..10 dan 0
+END
+```
+
+---
+
+## addProduct
+```
+BEGIN addProduct()
     IF int_product_count >= 100 THEN
-        DISPLAY "Kapasitas penuh"
+        print "Kapasitas penyimpanan penuh!"
         RETURN
     END IF
 
-    INPUT new_product.id
-    INPUT new_product.name
-    INPUT new_product.category
-    INPUT new_product.price
-    INPUT new_product.stock
-    INPUT new_product.supplier
-    
+    INPUT id
+    INPUT name (pakai fgets di C)
+    INPUT category
+    INPUT price
+    INPUT stock
+    INPUT supplier
+
     arr_products[int_product_count] = new_product
     int_product_count = int_product_count + 1
-    
-    CALL repository.save()
+
+    glb_repository.save(arr_products, int_product_count)
+    print "Produk berhasil ditambahkan!"
 END
 ```
 
-## Search Produk (Linear Search)
+---
+
+## displayAllProducts
 ```
-BEGIN searchProduct
-    INPUT search_type (1: ID, 2: Nama)
+BEGIN displayAllProducts()
+    print header tabel
+    FOR i = 0 TO int_product_count - 1 DO
+        print arr_products[i] (ID, name, category, price, stock)
+    END FOR
+END
+```
+
+---
+
+## updateProduct
+```
+BEGIN updateProduct()
+    INPUT target_id
+
+    found_index = -1
+    FOR i = 0 TO int_product_count - 1 DO
+        IF arr_products[i].id == target_id THEN
+            found_index = i
+            BREAK
+        END IF
+    END FOR
+
+    IF found_index == -1 THEN
+        print "Produk tidak ditemukan"
+        RETURN
+    END IF
+
+    // update field (name, category, price, stock, supplier)
+    INPUT new name
+    INPUT new category
+    INPUT new price
+    INPUT new stock
+    INPUT new supplier
+
+    glb_repository.save(arr_products, int_product_count)
+    print "Produk berhasil diupdate!"
+END
+```
+
+---
+
+## deleteProduct
+```
+BEGIN deleteProduct()
+    INPUT target_id
+
+    found_index = -1
+    FOR i = 0 TO int_product_count - 1 DO
+        IF arr_products[i].id == target_id THEN
+            found_index = i
+            BREAK
+        END IF
+    END FOR
+
+    IF found_index == -1 THEN
+        print "Produk tidak ditemukan"
+        RETURN
+    END IF
+
+    // shift left untuk menutup gap
+    FOR i = found_index TO int_product_count - 2 DO
+        arr_products[i] = arr_products[i + 1]
+    END FOR
+
+    int_product_count = int_product_count - 1
+    glb_repository.save(arr_products, int_product_count)
+    print "Produk berhasil dihapus!"
+END
+```
+
+---
+
+## searchProduct (linear)
+```
+BEGIN searchProduct()
+    INPUT search_choice (1: ID, 2: Nama)
     found = False
-    
-    IF search_type == 1 THEN
+
+    IF search_choice == 1 THEN
         INPUT search_id
         FOR i = 0 TO int_product_count - 1 DO
             IF arr_products[i].id == search_id THEN
-                DISPLAY arr_products[i]
+                display arr_products[i]
                 found = True
                 BREAK
             END IF
         END FOR
-    ELSE IF search_type == 2 THEN
-        INPUT search_name
+
+    ELSE IF search_choice == 2 THEN
+        INPUT query_name
         FOR i = 0 TO int_product_count - 1 DO
-            IF arr_products[i].name CONTAINS search_name THEN
-                DISPLAY arr_products[i]
+            IF arr_products[i].name contains query_name THEN
+                display arr_products[i]
                 found = True
             END IF
         END FOR
     END IF
-    
-    IF NOT found THEN
-        DISPLAY "Tidak ditemukan"
+
+    IF found == False THEN
+        print "Produk tidak ditemukan."
     END IF
 END
 ```
 
-## Sort Produk (Bubble Sort)
+---
+
+## sortProducts (bubble sort)
 ```
-BEGIN sortProducts
-    INPUT sort_type (1: Nama, 2: Harga, 3: Stok)
-    
+BEGIN sortProducts()
+    INPUT sort_choice (1: Nama, 2: Harga, 3: Stok)
+
     FOR i = 0 TO int_product_count - 2 DO
         FOR j = 0 TO int_product_count - i - 2 DO
             swap = False
-            
-            IF sort_type == 1 THEN
-                IF arr_products[j].name > arr_products[j+1].name THEN
-                    swap = True
-                END IF
-            ELSE IF sort_type == 2 THEN
-                IF arr_products[j].price > arr_products[j+1].price THEN
-                    swap = True
-                END IF
-            ELSE IF sort_type == 3 THEN
-                IF arr_products[j].stock > arr_products[j+1].stock THEN
-                    swap = True
-                END IF
+
+            IF sort_choice == 1 THEN
+                IF arr_products[j].name > arr_products[j+1].name THEN swap = True
+            ELSE IF sort_choice == 2 THEN
+                IF arr_products[j].price > arr_products[j+1].price THEN swap = True
+            ELSE IF sort_choice == 3 THEN
+                IF arr_products[j].stock > arr_products[j+1].stock THEN swap = True
             END IF
-            
+
             IF swap THEN
                 TEMP = arr_products[j]
                 arr_products[j] = arr_products[j+1]
@@ -196,39 +334,108 @@ BEGIN sortProducts
             END IF
         END FOR
     END FOR
-    
-    CALL repository.save()
+
+    glb_repository.save(arr_products, int_product_count)
+    print "Pengurutan berhasil..."
 END
 ```
 
-## Stock In (Operasi Aritmatika)
-```
-BEGIN stockIn
-    INPUT target_id
-    index = findIndexById(target_id)
-    
-    IF index != -1 THEN
-        INPUT qty_in
-        arr_products[index].stock = arr_products[index].stock + qty_in
-        CALL repository.save()
-    END IF
-END
-```
+---
 
-## Stock Out (Operasi Aritmatika & Validasi)
+## stockIn
 ```
-BEGIN stockOut
+BEGIN stockIn()
     INPUT target_id
-    index = findIndexById(target_id)
-    
-    IF index != -1 THEN
-        INPUT qty_out
-        IF arr_products[index].stock >= qty_out THEN
-            arr_products[index].stock = arr_products[index].stock - qty_out
-            CALL repository.save()
-        ELSE
-            DISPLAY "Stok tidak mencukupi"
+
+    found_index = -1
+    FOR i = 0 TO int_product_count - 1 DO
+        IF arr_products[i].id == target_id THEN
+            found_index = i
+            BREAK
         END IF
+    END FOR
+
+    IF found_index == -1 THEN
+        print "Produk tidak ditemukan."
+        RETURN
+    END IF
+
+    INPUT qty_in
+    arr_products[found_index].stock = arr_products[found_index].stock + qty_in
+
+    glb_repository.save(arr_products, int_product_count)
+    print "Stok berhasil ditambahkan..."
+END
+```
+
+---
+
+## stockOut
+```
+BEGIN stockOut()
+    INPUT target_id
+
+    found_index = -1
+    FOR i = 0 TO int_product_count - 1 DO
+        IF arr_products[i].id == target_id THEN
+            found_index = i
+            BREAK
+        END IF
+    END FOR
+
+    IF found_index == -1 THEN
+        print "Produk tidak ditemukan."
+        RETURN
+    END IF
+
+    INPUT qty_out
+
+    IF arr_products[found_index].stock < qty_out THEN
+        print "Gagal: Stok tidak mencukupi!"
+        RETURN
+    END IF
+
+    arr_products[found_index].stock = arr_products[found_index].stock - qty_out
+    glb_repository.save(arr_products, int_product_count)
+    print "Stok berhasil dikurangi..."
+END
+```
+
+---
+
+## lowStockReport
+```
+BEGIN lowStockReport()
+    print "Produk dengan stok < 5"
+
+    any = False
+    FOR i = 0 TO int_product_count - 1 DO
+        IF arr_products[i].stock < 5 THEN
+            display arr_products[i]
+            any = True
+        END IF
+    END FOR
+
+    IF any == False THEN
+        print "Tidak ada produk dengan stok menipis."
     END IF
 END
 ```
+
+---
+
+## inventoryStats
+```
+BEGIN inventoryStats()
+    total_asset = 0
+    total_stock = 0
+
+    FOR i = 0 TO int_product_count - 1 DO
+        total_asset += arr_products[i].price * arr_products[i].stock
+        total_stock += arr_products[i].stock
+    END FOR
+
+    print total jenis produk, total stok keseluruhan, dan total nilai aset
+END
+```
+
