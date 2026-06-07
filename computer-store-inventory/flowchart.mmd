@@ -1,0 +1,54 @@
+```mermaid
+flowchart TD
+    Start([Start]) --> InitRepo[Init Repository (Manual JSON)]
+    InitRepo --> LoadJSON[Load products.json]
+    LoadJSON --> CheckFile{File Exists?}
+    
+    CheckFile -- Yes --> ParseJSON[Parse JSON & Populate Array]
+    CheckFile -- No --> InitEmpty[Initialize Empty Array]
+    
+    ParseJSON --> LoopMenu
+    InitEmpty --> LoopMenu
+    
+    LoopMenu((Menu Utama)) --> CalcStats[Hitung Total Aset & Produk]
+    CalcStats --> ShowDashboard[Tampilkan Dashboard]
+    ShowDashboard --> ShowMenu[Tampilkan Opsi Menu (1-10, 0)]
+    ShowMenu --> InputChoice[/Input Pilihan/]
+    
+    InputChoice --> Switch{Switch Pilihan}
+    
+    Switch -- "1" --> AddProduct[Tambah Produk]
+    Switch -- "2" --> ShowProducts[Lihat Semua Produk]
+    Switch -- "3" --> UpdateProduct[Update Produk]
+    Switch -- "4" --> DeleteProduct[Hapus Produk]
+    Switch -- "5" --> SearchProduct[Cari Produk\nLinear Search]
+    Switch -- "6" --> SortProduct[Sort Produk\nBubble Sort]
+    Switch -- "7" --> StockIn[Barang Masuk\nStok += Qty]
+    Switch -- "8" --> StockOut[Barang Keluar\nStok -= Qty]
+    Switch -- "9" --> LowStock[Laporan Stok Menipis\nStok < 5]
+    Switch -- "10" --> Stats[Statistik Inventaris\nAset = Harga * Stok]
+    Switch -- "0" --> SaveExit[Simpan ke products.json & Keluar]
+    Switch -- "Lainnya" --> Invalid[Tampilkan Invalid]
+    
+    AddProduct --> AutoSave[Simpan Data Sementara]
+    UpdateProduct --> AutoSave
+    DeleteProduct --> AutoSave
+    SortProduct --> AutoSave
+    StockIn --> AutoSave
+    StockOut --> CheckStock{Stok Cukup?}
+    
+    CheckStock -- "Ya" --> AutoSave
+    CheckStock -- "Tidak" --> ErrorMsg[Tampilkan Error] --> ReturnMenu
+    
+    AutoSave --> ReturnMenu
+    ShowProducts --> ReturnMenu
+    SearchProduct --> ReturnMenu
+    LowStock --> ReturnMenu
+    Stats --> ReturnMenu
+    Invalid --> ReturnMenu
+    
+    ReturnMenu((Kembali)) --> LoopMenu
+    
+    SaveExit --> WriteJSON[Tulis Array ke products.json\nSebagai JSON Array/Objects]
+    WriteJSON --> End([End Program])
+```
