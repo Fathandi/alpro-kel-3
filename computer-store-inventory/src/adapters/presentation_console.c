@@ -5,70 +5,11 @@
 #include "../ports/repository.h"
 #include "../domain/product.h"
 
-/*
-================================================================================
-PRESENTATION ADAPTER - CONSOLE IMPLEMENTATION
-================================================================================
-File: src/adapters/presentation_console.c
-
-Deskripsi:
-  Implementasi concrete adapter untuk presentation port. File ini menangani
-  semua operasi UI/I/O menggunakan console/terminal.
-
-Pola Hexagonal Architecture:
-  - Ini adalah Adapter untuk presentation port
-  - Memisahkan business logic (domain) dari UI details
-  - Semua printf(), scanf(), dan input handling ada di sini
-  - Domain layer tetap pure, tidak tahu tentang UI
-
-Struktur File:
-  1. Utility function: clearBuffer() - bersihkan input buffer
-  2. Implementasi setiap fungsi UI sesuai kontrak port
-  3. Instantiasi struct PresentationAdapter dengan function pointer
-
-Desain Pattern:
-  - Setiap fungsi menu tidak mengembalikan nilai (void)
-  - Operasi I/O dan logika bisnis terpisah (domain di product.c)
-  - Repository adapter diakses via global glb_repository
-
-================================================================================
-*/
-
-/* =========================================
-   UTILITY FUNCTION - INPUT BUFFER MANAGEMENT
-   ========================================= */
-
-/* Membersihkan sisa input dari input buffer setelah scanf()
-   
-   Kenapa dibutuhkan?
-     - scanf("%d", ...) hanya membaca angka
-     - Karakter newline (\n) tertinggal di buffer
-     - Jika langsung pakai fgets(), akan langsung membaca newline sisa
-   
-   Solusi:
-     - Loop baca karakter sampai ditemukan newline atau EOF
-     - Karakter-karakter tersebut di-"buang" (tidak digunakan)
-*/
 void clearBuffer() {
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
 }
 
-/* =========================================
-   PRESENTATION FUNCTIONS - MENU & DISPLAY
-   ========================================= */
-
-/* Tampilkan menu utama dengan statistik ringkas
-   
-   Tanggung jawab:
-     - Hitung total produk, total stok, dan nilai aset barang
-     - Tampilkan header menu
-     - Tampilkan pilihan menu (1-10)
-   
-   Catatan:
-     - Statistik dihitung real-time dari array glb_arr_products
-     - Tidak menyimpan ke storage, hanya tampilkan
-*/
 void displayMenu() {
     printf("\n========================\n");
     printf("COMPUTER STORE INVENTORY\n");
@@ -99,28 +40,6 @@ void displayMenu() {
 }
 
 void addProduct() {
-    /* Tambah Produk Baru
-       
-       Flow Proses:
-         1. Validasi kapasitas array (max 100)
-         2. Input semua field produk dari user via console
-         3. Tambah ke array glb_arr_products
-         4. Increment counter glb_int_product_count
-         5. Simpan ke storage via glb_repository.save()
-       
-       Input Fields:
-         - ID: integer unik (user input)
-         - Nama: string max 100 karakter
-         - Kategori: string max 50 karakter
-         - Harga: float (Rupiah)
-         - Stok: integer jumlah barang
-         - Supplier: string max 100 karakter
-       
-       Note:
-         - Validasi keunikan ID TIDAK dilakukan di sini
-         - Responsibility: domain layer atau presentation layer?
-         - Saat ini: hanya collect input & append ke array
-    */
     if (glb_int_product_count >= PRODUCT_MAX) {
         printf("Kapasitas penyimpanan penuh!\n");
         return;
@@ -428,29 +347,6 @@ void inventoryStats() {
     printf("Total Nilai Aset Barang: Rp%.0f\n", lcl_float_total_asset);
 }
 
-/* =========================================
-   PRESENTATION ADAPTER INSTANTIATION
-   ========================================= */
-
-/* Instantiate presentation adapter untuk console/terminal
-   
-   Pattern: Dependency Injection
-   
-   Penjelasan:
-     - glb_presentation adalah global instance dari PresentationAdapter
-     - Struct ini berisi function pointer ke semua fungsi UI di file ini
-     - Diakses oleh main.c untuk memanggil fungsi UI
-     - Memungkinkan switch adapter tanpa ubah main.c
-   
-   Contoh Penggunaan di main.c:
-     glb_presentation.displayMenu();    // Panggil displayMenu()
-     glb_presentation.addProduct();     // Panggil addProduct()
-   
-   Keuntungan:
-     - main.c tidak "tahu" implementasi UI detail
-     - Mudah ganti ke adapter lain (GUI, Web, dll)
-     - Hexagonal architecture: port + adapter pattern
-*/
 PresentationAdapter glb_presentation = {
     .displayMenu = displayMenu,
     .addProduct = addProduct,
