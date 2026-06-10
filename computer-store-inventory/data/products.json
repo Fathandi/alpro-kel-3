@@ -5,4 +5,11 @@
 		"price":	950055,
 		"stock":	2,
 		"supplier":	"GokaiTech"
+	}, {
+		"id":	2,
+		"name":	"Fathih",
+		"category":	"Teknik",
+		"price":	5000000,
+		"stock":	1,
+		"supplier":	"GokaTech"
 	}]

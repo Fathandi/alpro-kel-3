@@ -132,7 +132,7 @@ int cjsonLoad(Product products[], int* count) {
     cJSON* item = NULL;
     
     cJSON_ArrayForEach(item, json) {
-        if (lcl_int_index >= 100) break; // Array limit
+        if (lcl_int_index >= PRODUCT_MAX) break; // Array limit
         
         cJSON* id = cJSON_GetObjectItemCaseSensitive(item, "id");
         cJSON* name = cJSON_GetObjectItemCaseSensitive(item, "name");

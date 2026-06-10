@@ -121,7 +121,7 @@ void addProduct() {
          - Responsibility: domain layer atau presentation layer?
          - Saat ini: hanya collect input & append ke array
     */
-    if (glb_int_product_count >= 100) {
+    if (glb_int_product_count >= PRODUCT_MAX) {
         printf("Kapasitas penyimpanan penuh!\n");
         return;
     }

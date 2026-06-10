@@ -44,8 +44,11 @@ typedef struct {
    Array penyimpanan produk dan counter
    ========================================= */
 
-/* Array penyimpanan data produk - kapasitas max 100 produk */
-extern Product glb_arr_products[100];
+/* Kapasitas array produk (harus mengikuti ukuran array global) */
+#define PRODUCT_MAX 100
+
+/* Array penyimpanan data produk - kapasitas PRODUCT_MAX produk */
+extern Product glb_arr_products[PRODUCT_MAX];
 
 /* Tracking jumlah produk yang saat ini tersimpan dalam array */
 extern int glb_int_product_count;

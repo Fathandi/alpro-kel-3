@@ -34,7 +34,7 @@ Arsitektur:
    ========================================= */
 
 /* Array global untuk menyimpan semua data produk (max 100 produk) */
-Product glb_arr_products[100];
+Product glb_arr_products[PRODUCT_MAX];
 
 /* Counter global untuk tracking berapa banyak produk yang tersimpan */
 int glb_int_product_count = 0;
