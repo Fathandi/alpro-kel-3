@@ -44,6 +44,12 @@ computer-store-inventory/
 ## Ringkasan Fungsi File (yang ada di repository)
 Agar reviewer cepat paham, berikut peran file-file utama (sesuai struktur project):
 
+## Update Kapasitas Produk
+Validasi kapasitas array sekarang tidak lagi hardcode `100`.
+- Array produk memakai konstanta `PRODUCT_MAX`.
+- Batas validasi `add/load` juga memakai `PRODUCT_MAX`.
+
+
 - **`computer-store-inventory/src/main.c`**
   - **Composition Root**: tempat dependency injection & routing.
   - Memanggil `createCJsonRepository()` untuk inject repository adapter (cJSON).

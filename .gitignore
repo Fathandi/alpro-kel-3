@@ -2,10 +2,18 @@
 *.o
 *.out
 *.exe
+
+# Executable / common build artifacts
 inventory_app
+
+# Build outputs
 output/
-.vscode/
-agent-task.md
 computer-store-inventory/output/
-*.exe
-inventory_app
+
+# VSCode
+.vscode/
+
+# AI prompt / agent task / documentation internal (do not push)
+agent-task.md
+komentarisasi-kode.py
+
