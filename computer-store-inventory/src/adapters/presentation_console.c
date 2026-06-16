@@ -464,3 +464,4 @@ PresentationAdapter glb_presentation = {
     .lowStockReport = lowStockReport,
     .inventoryStats = inventoryStats,
 };
+
