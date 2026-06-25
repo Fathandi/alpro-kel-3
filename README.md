@@ -1,355 +1,174 @@
-# Computer Store Inventory Management System (C99)
+# COMPUTER STORE INVENTORY — PRESENTATION MODERATOR (EXPERT BRIEF)
 
-## Deskripsi Singkat
-Aplikasi console berbasis **bahasa C (C99)** untuk mengelola inventaris toko komputer.
-- Tidak memakai framework.
-- Tidak memakai database server.
-- Persistensi data menggunakan **file JSON** (file handling).
+Anda sedang melihat sistem manajemen inventaris toko komputer berbasis **C (C99)**.
+Bukan sekadar program yang jalan—ini dirancang dengan pola **Hexagonal Architecture (Ports & Adapters)** agar logika bisnis tetap bersih, storage bisa diganti, dan UI bisa bertukar tanpa merusak inti sistem.
 
-## Arsitektur: Hexagonal (Ports & Adapters)
-Aplikasi dibagi menjadi komponen:
-- **Domain**: aturan bisnis dan struktur data (`src/domain`).
-- **Ports**: kontrak akses data (`src/ports`).
-- **Adapters**: implementasi akses data, pada project ini adapter JSON (`src/adapters`).
-- **Composition root/UI**: `src/main.c` yang melakukan *dependency injection* (memilih adapter konkret).
-
-Dengan pola ini, `main.c` tidak “terikat” ke format penyimpanan tertentu.
-
-## Struktur Folder
-```text
-computer-store-inventory/
-  data/
-    products.json
-  src/
-    main.c
-    domain/
-      product.h
-      product.c
-    ports/
-      repository.h
-      presentation.h
-    adapters/
-      repository_cjson.c
-      presentation_console.c
-    lib/
-      cJSON.c
-      cJSON.h
-  README.md
-  pseudocode.md
-  flowchart.mmd
-```
+Di medan perang yang penuh perubahan, desain ini adalah tameng Anda.
 
 ---
 
-## Ringkasan Fungsi File (yang ada di repository)
-Agar reviewer cepat paham, berikut peran file-file utama (sesuai struktur project):
+## 1) Tujuan Sistem (Apa yang dipimpin oleh program ini?)
+Sistem ini mengelola data **produk** yang tersimpan dalam memori, lalu dipersistensikan ke file **JSON**.
+Operasi yang tersedia via menu:
+- Tambah produk (Add)
+- Lihat semua produk
+- Update produk
+- Hapus produk
+- Cari produk (by ID / by Nama)
+- Sort produk (by Name / Price / Stock)
+- Stock In (tambah stok)
+- Stock Out (kurangi stok dengan validasi stok cukup)
+- Laporan stok menipis (< 5)
+- Statistik inventaris
 
-## Update Kapasitas Produk
-Validasi kapasitas array sekarang tidak lagi hardcode `100`.
-- Array produk memakai konstanta `PRODUCT_MAX`.
-- Batas validasi `add/load` juga memakai `PRODUCT_MAX`.
-
-
-- **`computer-store-inventory/src/main.c`**
-  - **Composition Root**: tempat dependency injection & routing.
-  - Memanggil `createCJsonRepository()` untuk inject repository adapter (cJSON).
-  - Memanggil `createConsolePresentation()` atau instantiasi `glb_presentation` untuk inject presentation adapter (console).
-  - Memanggil port lewat function pointer:
-    - `glb_repository.load(...)` & `glb_repository.save(...)` untuk data persistence.
-    - `glb_presentation.displayMenu()`, `glb_presentation.addProduct()`, dll untuk UI.
-  - Mengimplementasikan main event loop: menu → input user → routing ke fungsi → loop.
-
-- **`computer-store-inventory/src/domain/product.h`**
-  - Deklarasi tipe data `Product` (`typedef struct ...`).
-  - Deklarasi variabel global dengan `extern`.
-
-- **`computer-store-inventory/src/domain/product.c`**
-  - Implementasi logika bisnis inventaris: CRUD, searching (linear), sorting (bubble sort), operasi stok.
-  - **PURE domain layer**: TIDAK ada operasi I/O (printf, scanf). Semua I/O dipindahkan ke presentation adapter.
-
-- **`computer-store-inventory/src/ports/repository.h`**
-  - **Port**: kontrak akses data.
-  - Berisi `typedef struct ProductRepository` yang menggunakan **function pointer** (`load` dan `save`).
-
-- **`computer-store-inventory/src/ports/presentation.h`**
-  - **Port**: kontrak user interface.
-  - Berisi `typedef struct PresentationAdapter` dengan function pointer untuk semua operasi UI (menu, input form, display).
-  - Memisahkan business logic dari presentation detail.
-
-- **`computer-store-inventory/src/adapters/repository_cjson.c`**
-  - **Adapter** implementasi untuk menyimpan/memuat data JSON.
-  - `cjsonLoad`: baca `data/products.json` → parse → isi array `Product`.
-  - `cjsonSave`: ubah array `Product` → buat JSON → tulis ke file.
-  - `createCJsonRepository()`: factory function untuk inject adapter ke main.
-
-- **`computer-store-inventory/src/adapters/presentation_console.c`**
-  - **Adapter** implementasi untuk user interface berbasis console/terminal.
-  - Berisi semua fungsi UI: `displayMenu()`, `addProduct()`, `updateProduct()`, `deleteProduct()`, dll.
-  - `clearBuffer()`: utility untuk membersihkan input buffer setelah `scanf()`.
-  - Instantiasi global `glb_presentation` berisi function pointer ke semua fungsi UI.
-
-- **`computer-store-inventory/src/adapters/repository_cjson.c`**
-  - **Adapter** implementasi untuk menyimpan/memuat data JSON.
-  - `cjsonLoad`: baca `data/products.json` → parse → isi array `Product`.
-  - `cjsonSave`: ubah array `Product` → buat JSON → tulis ke file.
-
-- **`computer-store-inventory/src/lib/cJSON.h` dan `cJSON.c`**
-  - Source vendor library **cJSON**.
-  - `cJSON.h` berisi definisi tipe `cJSON` dan deklarasi fungsi API.
-  - `cJSON.c` adalah implementasi API-nya.
-
-- **`computer-store-inventory/data/products.json`**
-  - “Database lokal” berbentuk JSON (persistensi data).
-
- - **`computer-store-inventory/output/` dan executable hasil build (`main.exe`)**
-  - Ini adalah **artefak kompilasi** (bukan source code). Jika di repo terdapat `inventory_app`, itu kemungkinan besar duplikasi dari hasil build yang sama.
-  - Sebaiknya artefak build tidak disimpan dalam repository; tambahkan nama-nama artefak (mis. `main.exe`, `inventory_app`) ke `.gitignore`. Jika Anda memilih menyimpan satu executable untuk dokumentasi, gunakan satu nama yang konsisten (mis. `main.exe`).
+Setiap perubahan data akan disimpan ulang ke `data/products.json` sebelum program keluar (dan pada beberapa aksi juga disimpan segera).
 
 ---
 
-## Refactoring: Separation of Concerns (Presentation dari Domain)
+## 2) “Medan perang” Arsitektur: Hexagonal (Ports & Adapters)
+Pola ini membagi sistem menjadi 4 peran utama:
 
-Pada versi terbaru, aplikasi telah di-refactor mengikuti **Hexagonal Architecture** dengan pemisahan yang lebih ketat:
+### A. Domain Layer — `src/domain/product.c` & `src/domain/product.h`
+**Ini jantungnya.** Domain bertanggung jawab pada struktur data & logika bisnis.
+Pada implementasi Anda saat ini, domain memuat:
+- tipe `Product`
+- penyimpanan global:
+  - `glb_arr_products[PRODUCT_MAX]`
+  - `glb_int_product_count`
+- global repository instance `glb_repository`
 
-### Masalah Sebelumnya
-- Semua fungsi UI (`addProduct()`, `displayMenu()`, `searchProduct()`, dll) berada di `product.c` (domain layer).
-- Domain layer tercampur dengan presentation logic (printf, scanf).
-- Sulit untuk testing, refactoring, atau switch UI tanpa ubah domain.
+Intinya: domain tidak boleh bergantung pada detail UI atau cara storage.
 
-### Solusi: Presentation Port & Adapter
+### B. Ports Layer — Kontrak
+Ports adalah “kontrak komando”. Domain/main memanggil lewat kontrak, bukan detail implementasinya.
 
-**Sebelum:**
-```
-product.c (domain + presentation tercampur)
-├── void addProduct()    // berisi printf & scanf
-├── void displayMenu()   // UI logic
-└── void searchProduct() // UI logic
-```
+1) `src/ports/repository.h`
+- Mendefinisikan `ProductRepository` dengan **function pointer**:
+  - `load(Product products[], int* count)`
+  - `save(Product products[], int count)`
 
-**Sesudah:**
-```
-product.c (PURE domain)
-├── Global data: glb_arr_products[], glb_int_product_count
-├── Global repository: glb_repository
-└── [Tidak ada I/O, hanya data & business logic]
+2) `src/ports/presentation.h`
+- Mendefinisikan `PresentationAdapter` dengan function pointer untuk semua operasi UI:
+  - `displayMenu`, `addProduct`, `displayAllProducts`, `updateProduct`, `deleteProduct`,
+  - `searchProduct`, `sortProducts`, `stockIn`, `stockOut`, `lowStockReport`, `inventoryStats`
+- Juga menyediakan `clearBuffer()` untuk manajemen input console.
 
-presentation.h (PORT = kontrak)
-└── PresentationAdapter struct dengan function pointer
+### C. Adapters Layer — Implementasi nyata
+Adapter adalah “pasukan eksekutor” yang benar-benar melakukan I/O.
 
-presentation_console.c (ADAPTER = implementasi konkret)
-├── void addProduct()    // implementasi console UI
-├── void displayMenu()   // implementasi console UI
-└── glb_presentation = { .addProduct, .displayMenu, ... }
+1) Repository Adapter: `src/adapters/repository_cjson.c`
+- Mengimplementasikan `load` dan `save` menggunakan library **cJSON**.
+- Storage-nya adalah file:
+  - `computer-store-inventory/data/products.json`
 
-main.c (ROUTER/ORCHESTRATOR)
-├── Dependency injection: glb_presentation = createConsoleAdapter()
-├── Memanggil UI via: glb_presentation.addProduct()
-└── Routing user choice → fungsi yang sesuai
-```
+2) Presentation Adapter: `src/adapters/presentation_console.c`
+- Mengimplementasikan semua operasi UI via `printf/scanf/fgets`.
+- Memegang semua detail input/output yang berhubungan dengan terminal.
 
-### Keuntungan Refactoring
-1. **Domain = Pure Logic**: Business logic terpisah dari UI detail.
-2. **Testable**: Bisa unit test domain tanpa mock I/O.
-3. **Flexible**: Ganti console → GUI → Web hanya dengan adapter baru.
-4. **Maintainable**: Clear separation = mudah dibaca & dimodifikasi.
-5. **Scalable**: Mudah add feature baru tanpa kacaukan existing code.
+### D. Composition Root / Router — `src/main.c`
+`main.c` adalah komandannya yang mengikat semuanya:
+- Dependency Injection:
+  - `glb_repository = createCJsonRepository();`
+  - presentation adapter diikat lewat global `glb_presentation`.
+- Event loop:
+  - tampilkan menu (`glb_presentation.displayMenu()`)
+  - baca input pilihan
+  - routing ke handler menu dengan `switch`
+  - saat exit:
+    - `glb_repository.save(...)`
+    - program terminasi
 
-### Mapping Responsibility
-
-| Komponen | Tanggung Jawab |
-|----------|---|
-| **domain/product.c** | Data & business logic (CRUD, search, sort, stock) |
-| **ports/presentation.h** | Kontrak interface UI (function pointer spec) |
-| **adapters/presentation_console.c** | Implementasi UI (printf, scanf, form input) |
-| **main.c** | Dependency injection & routing |
-
----
-Bagian ini fokus pada “sintaks/konsep C yang sering terasa rumit” namun justru penting untuk memahami project.
-
-### Ringkasan singkat: Sintaks kunci untuk pemula
-Berikut adalah daftar singkat sintaks/pola yang sering muncul di proyek ini, dengan penjelasan singkat dan contoh minimal — ditujukan agar programmer junior cepat paham apa yang harus dicari di kode.
-
-- Header guard: mencegah multiple-include pada header.
-  - Contoh: `#ifndef PRODUCT_H` / `#define PRODUCT_H` ... `#endif`.
-- `typedef struct`: membuat nama tipe yang mudah dipakai.
-  - Contoh: `typedef struct { int id; char name[100]; } Product;` → gunakan `Product` langsung.
-- `extern` vs definisi: deklarasi di header, definisi satu-satunya di `.c`.
-  - Contoh: di header `extern int count;` di `.c` `int count = 0;`.
-- Function pointer untuk "port/adaptor": memanggil implementasi melalui pointer fungsi.
-  - Contoh tipe: `int (*load)(Product[], int*);` lalu panggil `repo.load(arr, &n);`.
-- `static` pada fungsi: membuat fungsi hanya terlihat di file yang sama (private helper).
-  - Contoh: `static char* readFile(const char* filename) { ... }`.
-- Parameter array/pointer: `Product products[]` setara `Product* products`.
-  - Contoh akses: `products[i].id`.
-- Passing by reference: gunakan pointer untuk mengubah variabel pemanggil.
-  - Contoh: `void set(int *p) { *p = 5; }` panggil `set(&x);`.
-- Perbedaan `scanf` dan `fgets`: `scanf` untuk angka; `fgets` lebih aman untuk string.
-  - Ingat: bersihkan input buffer setelah `scanf` sebelum `fgets`.
-- Penggunaan cJSON: parse string JSON ke struktur `cJSON*`, iterasi array, ambil field, lalu isi struct C.
-
-Jika ingin, saya bisa mengubah bagian berikutnya menjadi penjelasan bertahap (contoh file + baris) untuk lebih jelas bagi pemula.
-
-### 1) Header guard `#ifndef/#define/#endif`
-Di file header `.h` terdapat pola:
-```c
-#ifndef PRODUCT_H
-#define PRODUCT_H
-...
-#endif
-```
-**Kenapa penting?**
-Saat beberapa file `#include` header yang sama, tanpa guard header isinya bisa dideklarasikan ulang dan memicu error saat kompilasi.
-
-Di project, header guard juga digunakan pada library `cJSON.h` (mis. `#ifndef cJSON__h`).
-
-### 2) `typedef struct { ... } Product;`
-Contoh dari `src/domain/product.h`:
-```c
-typedef struct {
-    int id;
-    char name[100];
-    char category[50];
-    float price;
-    int stock;
-    char supplier[100];
-} Product;
-```
-**Kenapa pakai `typedef`?**
-Supaya pemakaian tipe jadi lebih ringkas (`Product`), bukan `struct { ... }` berulang.
-
-### 3) `extern` (deklarasi variabel global, bukan definisi)
-Di `product.h` terdapat deklarasi:
-```c
-extern Product glb_arr_products[100];
-extern int glb_int_product_count;
-```
-Lalu definisinya berada di `product.c`:
-```c
-Product glb_arr_products[100];
-int glb_int_product_count = 0;
-```
-**Aturan penting C:**
-- `extern` di header = *deklarasi*.
-- variabel harus *didefinisikan* di satu `.c` supaya linker punya alamatnya.
-
-### 4) Function pointer untuk “polimorfisme” di C
-Port (kontrak) di `src/ports/repository.h` menggunakan function pointer:
-```c
-typedef struct {
-    int (*load)(Product products[], int* count);
-    int (*save)(Product products[], int count);
-} ProductRepository;
-```
-Bacanya:
-- `load` adalah pointer fungsi.
-- `save` adalah pointer fungsi.
-
-Di `src/main.c`, adapter disuntikkan:
-```c
-glb_repository = createCJsonRepository();
-glb_repository.load(glb_arr_products, &glb_int_product_count);
-```
-Terlihat “tidak umum”, tapi ini pola umum untuk hexagonal architecture di C.
-
-### 5) `static` helper: fungsi hanya untuk file itu
-Di adapter JSON ada:
-```c
-static char* readFile(const char* filename) { ... }
-```
-`static` membatasi *linkage* fungsi agar tidak terlihat dari file lain (mencegah bentrok simbol).
-
-### 6) Pointer & array di parameter: `Product products[]`
-Signature:
-```c
-int cjsonLoad(Product products[], int* count)
-```
-Di C, `Product products[]` pada parameter sebenarnya setara dengan:
-- `Product* products`
-
-Elemen diakses memakai indeks:
-```c
-products[i].id
-products[i].stock
-```
-
-### 7) `int* count` (pass by reference “versi C”)
-C selalu pass-by-value.
-Untuk mengubah nilai variabel milik pemanggil, dipakai pointer:
-```c
-*count = lcl_int_index;
-```
-
-### 8) `scanf` vs `fgets`, plus `clearBuffer()`
-Pada menu:
-- `scanf("%d", &lcl_int_choice)` membaca angka.
-- setelah `scanf`, newline bisa tersisa.
-- `clearBuffer()` menghapus sisa input sampai newline/EOF.
-
-Untuk string (nama/kategori/supplier):
-- dipakai `fgets(...)` karena lebih aman untuk input string.
-- newline dihapus dengan `strcspn(str, "\n")`.
-
-### 9) cJSON parsing & serialisasi (flow yang benar-benar dipakai)
-Adapter `src/adapters/repository_cjson.c` melakukan:
-1) `readFile()` → menghasilkan `char* json_string`.
-2) `cJSON_Parse(json_string)` → menghasilkan `cJSON* root`.
-3) Validasi tipe:
-   - `cJSON_IsArray(root)`
-4) Iterasi array dengan macro:
-   - `cJSON_ArrayForEach(item, json)`
-5) Ambil field per item menggunakan:
-   - `cJSON_GetObjectItemCaseSensitive(item, "id")`
-6) Validasi tipe data:
-   - `cJSON_IsNumber(...)` / `cJSON_IsString(...)`
-7) Isi struct `Product`.
-8) Saat simpan:
-   - buat array dan object baru (`cJSON_CreateArray`, `cJSON_CreateObject`)
-   - tambah field (`cJSON_AddNumberToObject`, `cJSON_AddStringToObject`)
-   - `cJSON_Print(root)` lalu tulis ke file.
-
-**Macro cJSON yang terlihat rumit**
-Contoh `cJSON_ArrayForEach` (di `cJSON.h`):
-```c
-#define cJSON_ArrayForEach(element, array) \
-    for(element = (array != NULL) ? (array)->child : NULL; \
-        element != NULL; \
-        element = element->next)
-```
-Artinya iterasi dilakukan lewat linked structure `child/next` internal cJSON.
+Jika di medan perang ada perubahan storage atau UI, **yang diganti cukup adapter/factory**, bukan memaksa domain berubah.
 
 ---
 
-## B. Kesesuaian proses penulisan kode dengan aturan (yang relevan ke project)
-Checklist yang sesuai praktik C untuk project ini:
-1) Deklarasi di `.h`, implementasi di `.c`.
-2) Header guard agar `#include` aman.
-3) `extern` hanya untuk deklarasi global di header.
-4) `static` dipakai untuk helper internal.
-5) Port dan adapter dipisahkan lewat function pointer.
-6) Integrasi library cJSON memakai API dari `cJSON.h`.
-7) Kontrak input-output jelas:
-   - `load(..., int* count)` mengubah `count` via pointer.
-   - `save(..., int count)` menggunakan `count` untuk iterasi.
+## 3) Alur Eksekusi Program (Narasi moderator)
+Saat program mulai:
+1) `main()` membuat repository adapter cJSON.
+2) Program memanggil `glb_repository.load(...)`:
+   - membaca `data/products.json`
+   - parse JSON menjadi array `Product`
+   - update `glb_int_product_count`
+3) Masuk ke loop menu:
+   - menu tampil beserta statistik (total produk, total stok, total nilai aset)
+   - user memilih aksi dari 0–10
+   - `switch` menjalankan function pointer di `glb_presentation`
+4) Saat user pilih `0`:
+   - program menyimpan ulang seluruh array `Product` ke JSON
+   - exit
 
 ---
 
-## C. Dari mana sumber library cJSON didapat? Siapa provider?
-Di project ini, cJSON **tidak dipasang via package manager**, tetapi disertakan langsung sebagai vendor code.
+## 4) Semua aspek implementasi (tanpa terkecuali)
 
-Sumber file library dalam repo:
-- `computer-store-inventory/src/lib/cJSON.c`
-- `computer-store-inventory/src/lib/cJSON.h`
+### 4.1 Struktur data `Product`
+`Product` berisi:
+- `id` (int) : unik per produk (di UI Anda belum ada check keunikan, tapi field memang dipakai sebagai kunci pencarian)
+- `name[100]`
+- `category[50]`
+- `price` (float)
+- `stock` (int)
+- `supplier[100]`
 
-Provider / asal library:
-- pada file `cJSON.h` terdapat copyright & notice yang menyebut **Dave Gamble and cJSON contributors**.
+### 4.2 Batas kapasitas — `PRODUCT_MAX`
+- Array produk maksimal `PRODUCT_MAX` (100).
+- Saat add: bila count sudah penuh, program menolak penambahan.
+- Saat load: jika JSON lebih panjang dari kapasitas, proses berhenti di batas array.
 
-Cara integrasi di project:
-- build memasukkan `lib/cJSON.c`.
-- adapter `repository_cjson.c` meng-*include* `../lib/cJSON.h`.
+### 4.3 Input Handling Console (yang harus Anda sebut saat presentasi)
+Di console adapter:
+- Angka dibaca menggunakan `scanf`.
+- String dibaca menggunakan `fgets`.
+- Ada problem klasik: `scanf` sering meninggalkan newline sisa.
+- Solusinya: `clearBuffer()` yang membersihkan buffer sampai `\n` atau EOF.
+- Setelah `fgets`, newline dibuang dengan `strcspn(str, "\n")`.
+
+Untuk seorang yang awam sekalipun: ini penting karena kalau tidak, input string berikutnya bisa terbaca kosong.
+
+### 4.4 Sorting (bubble sort)
+Sort dilakukan menggunakan nested loop ala bubble sort.
+Pilihan user menentukan kriteria:
+- 1: berdasarkan `name` (menggunakan `strcmp`)
+- 2: berdasarkan `price`
+- 3: berdasarkan `stock`
+
+Setelah sorting, program menyimpan ulang data.
+
+### 4.5 Search (ID atau substring nama)
+- Mode ID: compare langsung `product[i].id == input_id`
+- Mode Nama: gunakan `strstr(product[i].name, query)` untuk pencarian substring.
+
+### 4.6 Stock In / Stock Out
+- Stock In:
+  - cari produk berdasarkan ID
+  - tambahkan `qty` ke `product.stock`
+- Stock Out:
+  - validasi stok mencukupi:
+    - jika `stock < qty` → gagal
+    - jika cukup → kurangi
+
+### 4.7 Repository JSON menggunakan cJSON
+Di `repository_cjson.c`:
+- `readFile()` membaca file JSON menjadi string dinamis.
+- `cJSON_Parse(json_string)` membuat tree JSON.
+- `cJSON_IsArray(root)` memastikan struktur adalah array.
+- Iterasi array menggunakan `cJSON_ArrayForEach` (yang berjalan lewat linked structure `child/next`).
+- Field dipetakan ke `Product`:
+  - `id`, `name`, `category`, `price`, `stock`, `supplier`
+- Saat save:
+  - dibuat `cJSON_CreateArray`
+  - setiap produk jadi `cJSON_CreateObject`
+  - field ditambahkan ke object
+  - `cJSON_Print(root)` menghasilkan string JSON
+  - ditulis dengan mode `w` (overwrite)
 
 ---
 
-## Kesimpulan
-Project memenuhi kebutuhan tugas: pengelolaan inventaris, pencarian linear, sorting bubble sort, serta persistensi data JSON.
-Selain itu, README ini memberikan penjelasan sintaks C yang “tidak umum” dan menunjukkan keterkaitannya langsung dengan kode.
+## 5) Cara menjalankan (manual compile)
+Build menggunakan instruksi GCC manual yang disediakan di:
+- `compile_instructions.txt`
 
+Output build:
+- `computer-store-inventory/output/main.exe`
+
+---

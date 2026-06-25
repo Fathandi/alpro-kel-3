@@ -1,19 +1,48 @@
-# C Object files and Executables
+# Build artifacts
 *.o
 *.out
 *.exe
+*.obj
+*.so
+*.a
+*.dSYM/
+*.d
+*.pdb
+*.ilk
+*.idb
+*.gcda
+*.gcno
+*.gcov
+*.prof
+*.tmp
 
-# Executable / common build artifacts
-inventory_app
-
-# Build outputs
-output/
+# Output directories
 computer-store-inventory/output/
 
-# VSCode
-.vscode/
+# Generated or temporary project files
+capture/
 
-# AI prompt / agent task / documentation internal (do not push)
+# Editor / IDE
+.vscode/
+*.swp
+*.swo
+*~
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Python cache / artifacts
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
+
+# AI prompt / task files (internal)
 agent-task.md
 komentarisasi-kode.py
 
