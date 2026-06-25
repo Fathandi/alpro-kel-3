@@ -5,6 +5,8 @@
 #include "../domain/product.h"
 #include "../lib/cJSON.h"
 
+#define PRODUCT_JSON_PATH "data/products.json"
+
 /*
 ================================================================================
 REPOSITORY ADAPTER - cJSON IMPLEMENTATION
@@ -108,7 +110,7 @@ static char* readFile(const char* filename) {
      - Jika bukan array: return 0, count = 0 (fresh start)
 */
 int cjsonLoad(Product products[], int* count) {
-    char* json_string = readFile("computer-store-inventory/data/products.json");
+    char* json_string = readFile(PRODUCT_JSON_PATH);
     if (!json_string) {
         *count = 0;
         return 0; // File not found or error, start fresh
@@ -214,7 +216,7 @@ int cjsonSave(Product products[], int count) {
     cJSON_Delete(root);
     
     if (json_string) {
-        FILE* f = fopen("computer-store-inventory/data/products.json", "w");
+        FILE* f = fopen(PRODUCT_JSON_PATH, "w");
         if (f) {
             fprintf(f, "%s\n", json_string);
             fclose(f);

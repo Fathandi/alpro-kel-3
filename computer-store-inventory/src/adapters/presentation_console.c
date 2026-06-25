@@ -11,25 +11,22 @@ PRESENTATION ADAPTER - CONSOLE IMPLEMENTATION
 ================================================================================
 File: src/adapters/presentation_console.c
 
-Deskripsi:
-  Implementasi concrete adapter untuk presentation port. File ini menangani
-  semua operasi UI/I/O menggunakan console/terminal.
+Peran:
+  Adapter ini mengimplementasikan semua operasi pada PresentationAdapter
+  (port UI) menggunakan antarmuka console/terminal.
 
-Pola Hexagonal Architecture:
-  - Ini adalah Adapter untuk presentation port
-  - Memisahkan business logic (domain) dari UI details
-  - Semua printf(), scanf(), dan input handling ada di sini
-  - Domain layer tetap pure, tidak tahu tentang UI
+Prinsip desain:
+  - Adapter adalah lokasi I/O: printf/scanf/fgets.
+  - Domain (src/domain/product.c) berisi state & aturan bisnis.
+  - main.c hanya melakukan routing/menu; detail interaksi user ada di sini.
 
-Struktur File:
-  1. Utility function: clearBuffer() - bersihkan input buffer
-  2. Implementasi setiap fungsi UI sesuai kontrak port
-  3. Instantiasi struct PresentationAdapter dengan function pointer
+Konsep Hexagonal (Ports & Adapters):
+  - presentation.h: kontrak (function pointer) yang dipanggil oleh main
+  - presentation_console.c: implementasi konkret kontrak
 
-Desain Pattern:
-  - Setiap fungsi menu tidak mengembalikan nilai (void)
-  - Operasi I/O dan logika bisnis terpisah (domain di product.c)
-  - Repository adapter diakses via global glb_repository
+Catatan pembaca (untuk pemula):
+  - struct berisi pointer fungsi = cara polimorfisme di C.
+  - main memanggil glb_presentation.<fungsi>() tanpa tahu implementasinya.
 
 ================================================================================
 */
@@ -38,16 +35,22 @@ Desain Pattern:
    UTILITY FUNCTION - INPUT BUFFER MANAGEMENT
    ========================================= */
 
-/* Membersihkan sisa input dari input buffer setelah scanf()
-   
-   Kenapa dibutuhkan?
-     - scanf("%d", ...) hanya membaca angka
-     - Karakter newline (\n) tertinggal di buffer
-     - Jika langsung pakai fgets(), akan langsung membaca newline sisa
-   
-   Solusi:
-     - Loop baca karakter sampai ditemukan newline atau EOF
-     - Karakter-karakter tersebut di-"buang" (tidak digunakan)
+/*
+  Fungsi: clearBuffer()
+
+  Kenapa ada?
+  - Banyak input angka memakai scanf(). scanf menyisakan karakter delimiter
+    (umumnya newline '\n') di input buffer.
+  - Jika setelah itu kita memanggil fgets(), fgets bisa membaca newline sisa
+    sehingga hasil string menjadi kosong.
+
+  Kontrak:
+    - Pre: setelah scanf, buffer mungkin masih berisi newline sisa
+    - Post: buffer dibersihkan sampai '\n' atau EOF
+
+  Dampak:
+    - Tidak mengubah logika bisnis.
+    - Hanya memastikan urutan input user berjalan benar.
 */
 void clearBuffer() {
     int c;
@@ -58,16 +61,20 @@ void clearBuffer() {
    PRESENTATION FUNCTIONS - MENU & DISPLAY
    ========================================= */
 
-/* Tampilkan menu utama dengan statistik ringkas
-   
-   Tanggung jawab:
-     - Hitung total produk, total stok, dan nilai aset barang
-     - Tampilkan header menu
-     - Tampilkan pilihan menu (1-10)
-   
-   Catatan:
-     - Statistik dihitung real-time dari array glb_arr_products
-     - Tidak menyimpan ke storage, hanya tampilkan
+/*
+  displayMenu()
+
+  Output:
+    - Menampilkan header program.
+    - Menghitung statistik dari state domain (glb_arr_products &
+      glb_int_product_count):
+        * Total produk jenis
+        * Total stok keseluruhan
+        * Nilai aset = sum(price * stock)
+    - Menampilkan daftar pilihan aksi 0..10.
+
+  Catatan:
+    - Fungsi ini hanya menampilkan (tidak mengubah data).
 */
 void displayMenu() {
     printf("\n========================\n");
@@ -98,6 +105,23 @@ void displayMenu() {
     printf("0. Keluar\n");
 }
 
+/*
+  addProduct()
+
+  Tanggung jawab:
+    - Validasi kapasitas array domain (PRODUCT_MAX).
+    - Mengumpulkan input user untuk membuat satu Product.
+    - Menambahkan Product ke glb_arr_products.
+    - Memperbarui glb_int_product_count.
+    - Memanggil glb_repository.save(...) untuk persistensi JSON.
+
+  I/O:
+    - scanf untuk angka, fgets untuk string.
+    - clearBuffer dipakai untuk menghindari newline sisa setelah scanf.
+
+  Catatan desain:
+    - Pemeriksaan keunikan ID belum dilakukan di sini.
+*/
 void addProduct() {
     /* Tambah Produk Baru
        
@@ -158,6 +182,12 @@ void addProduct() {
     printf("Produk berhasil ditambahkan!\n");
 }
 
+/*
+  displayAllProducts()
+
+  Output:
+    - Mencetak tabel seluruh produk yang tersimpan dalam state domain.
+*/
 void displayAllProducts() {
     printf("\n--- Semua Produk ---\n");
     printf("%-5s %-30s %-15s %-15s %-10s %-15s\n", "ID", "Nama", "Kategori", "Harga", "Stok", "Supplier");
@@ -173,6 +203,15 @@ void displayAllProducts() {
     }
 }
 
+/*
+  updateProduct()
+
+  Flow:
+    1) Input ID target.
+    2) Cari indeks produk di array.
+    3) Jika ditemukan: minta nilai baru (nama, kategori, harga, stok, supplier).
+    4) Simpan ulang via repository.save(...).
+*/
 void updateProduct() {
     int lcl_int_id;
     printf("\nMasukkan ID Produk yang akan diupdate: ");
@@ -216,6 +255,16 @@ void updateProduct() {
     }
 }
 
+/*
+  deleteProduct()
+
+  Flow:
+    1) Input ID.
+    2) Cari indeks.
+    3) Jika ditemukan: geser elemen setelahnya satu posisi ke kiri.
+    4) Decrement glb_int_product_count.
+    5) Simpan via repository.save(...).
+*/
 void deleteProduct() {
     int lcl_int_id;
     printf("\nMasukkan ID Produk yang akan dihapus: ");
@@ -241,6 +290,16 @@ void deleteProduct() {
     }
 }
 
+/*
+  searchProduct()
+
+  Mode pencarian:
+    - 1: berdasarkan ID (exact match)
+    - 2: berdasarkan Nama (substring menggunakan strstr)
+
+  Output:
+    - Menampilkan produk yang cocok; jika tidak ada, mencetak "Produk tidak ditemukan".
+*/
 void searchProduct() {
     int lcl_int_choice;
     printf("\n--- Cari Produk ---\n");
@@ -294,6 +353,16 @@ void searchProduct() {
     }
 }
 
+/*
+  sortProducts()
+
+  Metode sorting: bubble sort (berdasarkan pilihan user)
+    - 1: name (strcmp)
+    - 2: price (float)
+    - 3: stock (int)
+
+  Setelah sorting: data disimpan ulang ke JSON.
+*/
 void sortProducts() {
     int lcl_int_choice;
     printf("\n--- Sort Produk ---\n");
@@ -333,6 +402,14 @@ void sortProducts() {
     glb_repository.save(glb_arr_products, glb_int_product_count);
 }
 
+/*
+  stockIn()
+
+  Flow:
+    - Cari produk berdasarkan ID.
+    - Tambah stok (stock += qty).
+    - Simpan ulang ke JSON.
+*/
 void stockIn() {
     int lcl_int_id;
     int lcl_int_qty;
@@ -362,6 +439,16 @@ void stockIn() {
     }
 }
 
+/*
+  stockOut()
+
+  Flow:
+    - Cari produk berdasarkan ID.
+    - Validasi stok cukup sebelum mengurangi.
+    - Jika stok tidak cukup: gagal dan stok tidak berubah.
+    - Jika cukup: stock -= qty.
+    - Simpan ulang ke JSON.
+*/
 void stockOut() {
     int lcl_int_id;
     int lcl_int_qty;
@@ -395,6 +482,13 @@ void stockOut() {
     }
 }
 
+/*
+  lowStockReport()
+
+  Laporan:
+    - Menampilkan produk dengan stock < 5.
+    - Jika tidak ada: menampilkan pesan "Tidak ada produk dengan stok menipis".
+*/
 void lowStockReport() {
     printf("\n--- Laporan Stok Menipis (< 5) ---\n");
     printf("%-5s %-30s %-10s\n", "ID", "Nama", "Stok");
@@ -413,6 +507,14 @@ void lowStockReport() {
     }
 }
 
+/*
+  inventoryStats()
+
+  Statistik:
+    - total jenis produk = glb_int_product_count
+    - total stok keseluruhan
+    - total nilai aset
+*/
 void inventoryStats() {
     printf("\n--- Statistik Inventaris ---\n");
     float lcl_float_total_asset = 0;
@@ -432,24 +534,16 @@ void inventoryStats() {
    PRESENTATION ADAPTER INSTANTIATION
    ========================================= */
 
-/* Instantiate presentation adapter untuk console/terminal
-   
-   Pattern: Dependency Injection
-   
-   Penjelasan:
-     - glb_presentation adalah global instance dari PresentationAdapter
-     - Struct ini berisi function pointer ke semua fungsi UI di file ini
-     - Diakses oleh main.c untuk memanggil fungsi UI
-     - Memungkinkan switch adapter tanpa ubah main.c
-   
-   Contoh Penggunaan di main.c:
-     glb_presentation.displayMenu();    // Panggil displayMenu()
-     glb_presentation.addProduct();     // Panggil addProduct()
-   
-   Keuntungan:
-     - main.c tidak "tahu" implementasi UI detail
-     - Mudah ganti ke adapter lain (GUI, Web, dll)
-     - Hexagonal architecture: port + adapter pattern
+/*
+  Instansiasi PresentationAdapter
+
+  Penting:
+  - Struktur ini berisi pointer ke fungsi-fungsi UI di file ini.
+  - main.c memanggil melalui global glb_presentation.
+
+  Dampak desain:
+  - main tidak terikat pada console.
+  - Di masa depan, tinggal buat adapter baru (mis. GUI) dan ikat ke glb_presentation.
 */
 PresentationAdapter glb_presentation = {
     .displayMenu = displayMenu,
