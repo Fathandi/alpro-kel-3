@@ -3,8 +3,6 @@
 Anda sedang melihat sistem manajemen inventaris toko komputer berbasis **C (C99)**.
 Bukan sekadar program yang jalan—ini dirancang dengan pola **Hexagonal Architecture (Ports & Adapters)** agar logika bisnis tetap bersih, storage bisa diganti, dan UI bisa bertukar tanpa merusak inti sistem.
 
-Di medan perang yang penuh perubahan, desain ini adalah tameng Anda.
-
 ---
 
 ## 1) Tujuan Sistem (Apa yang dipimpin oleh program ini?)
